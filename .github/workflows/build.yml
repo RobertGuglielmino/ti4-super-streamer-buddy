@@ -23,20 +23,23 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '18.17.0'
-        
+        node-version: '16.20.0'
+      timeout-minutes: 10
+      
     - name: Install dependencies (Windows)
       if: matrix.os == 'windows-latest'
       shell: cmd
       run: |
         npm config set legacy-peer-deps true
         npm install --no-audit --no-fund
+      timeout-minutes: 15
       
     - name: Install dependencies (macOS/Linux)
       if: matrix.os != 'windows-latest'
       run: |
         npm config set legacy-peer-deps true
         npm install --no-audit --no-fund
+      timeout-minutes: 15
       
     - name: Run linter
       run: npm run lint
@@ -44,31 +47,34 @@ jobs:
     - name: Build app (Windows)
       if: matrix.os == 'windows-latest'
       run: npm run build:win
+      timeout-minutes: 30
       
     - name: Build app (macOS)
       if: matrix.os == 'macos-latest'
       run: npm run build
+      timeout-minutes: 30
       
     - name: Build app (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: npm run build
+      timeout-minutes: 30
       
     - name: Upload artifacts (Windows)
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows-latest' && success()
       uses: actions/upload-artifact@v4
       with:
         name: windows-build
         path: release/*.exe
         
     - name: Upload artifacts (macOS)
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-latest' && success()
       uses: actions/upload-artifact@v4
       with:
         name: macos-build
         path: release/*.dmg
         
     - name: Upload artifacts (Linux)
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-latest' && success()
       uses: actions/upload-artifact@v4
       with:
         name: linux-build
@@ -76,7 +82,7 @@ jobs:
         
     - name: Release
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'release'
+      if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'release' && success()
       with:
         files: |
           release/*.exe
