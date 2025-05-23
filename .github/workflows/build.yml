@@ -33,6 +33,7 @@ jobs:
       run: |
         npm config set legacy-peer-deps true
         npm install --no-audit --no-fund
+        npm install -g rimraf
       timeout-minutes: 15
       
     - name: Install dependencies (macOS/Linux)
@@ -40,6 +41,7 @@ jobs:
       run: |
         npm config set legacy-peer-deps true
         npm install --no-audit --no-fund
+        npm install -g rimraf
       timeout-minutes: 15
       
     # Skip linting for now since there's no ESLint config
@@ -48,17 +50,29 @@ jobs:
       
     - name: Build app (Windows)
       if: matrix.os == 'windows-latest'
-      run: npm run build:win
+      run: |
+        npx rimraf dist dist-electron release
+        npx tsc
+        npx vite build
+        npx electron-builder --win --config.win.signAndEditExecutable=false
       timeout-minutes: 30
       
     - name: Build app (macOS)
       if: matrix.os == 'macos-latest'
-      run: npm run build
+      run: |
+        npx rimraf dist dist-electron release
+        npx tsc
+        npx vite build
+        npx electron-builder
       timeout-minutes: 30
       
     - name: Build app (Linux)
       if: matrix.os == 'ubuntu-latest'
-      run: npm run build
+      run: |
+        npx rimraf dist dist-electron release
+        npx tsc
+        npx vite build
+        npx electron-builder
       timeout-minutes: 30
       
     - name: Upload artifacts (Windows)
