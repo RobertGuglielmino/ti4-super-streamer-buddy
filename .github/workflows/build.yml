@@ -27,22 +27,26 @@ jobs:
         node-version: '16.20.0'
       timeout-minutes: 10
       
-    - name: Install dependencies (Windows)
+    - name: Install dependencies
+      run: |
+        npm config set legacy-peer-deps true
+        npm install --no-audit --no-fund
+      timeout-minutes: 15
+      
+    - name: Create simple build script (Windows)
       if: matrix.os == 'windows-latest'
       shell: cmd
       run: |
-        npm config set legacy-peer-deps true
-        npm install --no-audit --no-fund
-        npm install -g typescript vite electron-builder
-      timeout-minutes: 15
+        echo { "scripts": { "build-ci": "tsc && vite build && electron-builder --win --config.win.signAndEditExecutable=false" } } > build-script.json
+        type package.json | findstr /v "scripts" > temp.json
+        node -e "const pkg1 = require('./temp.json'); const pkg2 = require('./build-script.json'); const merged = {...pkg1, scripts: {...pkg1.scripts, ...pkg2.scripts}}; require('fs').writeFileSync('package.json', JSON.stringify(merged, null, 2));"
       
-    - name: Install dependencies (macOS/Linux)
+    - name: Create simple build script (macOS/Linux)
       if: matrix.os != 'windows-latest'
       run: |
-        npm config set legacy-peer-deps true
-        npm install --no-audit --no-fund
-        npm install -g typescript vite electron-builder
-      timeout-minutes: 15
+        echo '{ "scripts": { "build-ci": "tsc && vite build && electron-builder" } }' > build-script.json
+        grep -v "scripts" package.json > temp.json
+        node -e "const pkg1 = require('./temp.json'); const pkg2 = require('./build-script.json'); const merged = {...pkg1, scripts: {...pkg1.scripts, ...pkg2.scripts}}; require('fs').writeFileSync('package.json', JSON.stringify(merged, null, 2));"
       
     - name: Clean directories (Windows)
       if: matrix.os == 'windows-latest'
@@ -57,29 +61,8 @@ jobs:
       run: |
         rm -rf dist dist-electron release
       
-    - name: Build app (Windows)
-      if: matrix.os == 'windows-latest'
-      shell: cmd
-      run: |
-        npx typescript tsc
-        npx vite build
-        npx electron-builder --win --config.win.signAndEditExecutable=false
-      timeout-minutes: 30
-      
-    - name: Build app (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        npx typescript tsc
-        npx vite build
-        npx electron-builder
-      timeout-minutes: 30
-      
-    - name: Build app (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        npx typescript tsc
-        npx vite build
-        npx electron-builder
+    - name: Build app
+      run: npm run build-ci
       timeout-minutes: 30
       
     - name: Upload artifacts (Windows)
