@@ -24,9 +24,16 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
         
-    - name: Install dependencies
+    - name: Install dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: cmd
+      run: |
+        npm config set legacy-peer-deps true
+        npm install
+      
+    - name: Install dependencies (macOS/Linux)
+      if: matrix.os != 'windows-latest'
       run: |
         npm config set legacy-peer-deps true
         npm install
