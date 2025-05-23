@@ -2,11 +2,11 @@ name: Build and Release Electron App
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   release:
-    types: [ published ]
+    types: [created]
 
 jobs:
   build:
@@ -22,32 +22,27 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18.x'
-      timeout-minutes: 10
+        cache: 'npm'
       
     - name: Install dependencies
       run: |
         npm config set legacy-peer-deps true
         npm install --no-audit --no-fund
-      timeout-minutes: 15
       
-    - name: Clean directories (Windows)
-      if: matrix.os == 'windows-latest'
-      shell: cmd
-      run: |
-        if exist dist rmdir /s /q dist
-        if exist dist-electron rmdir /s /q dist-electron
-        if exist release rmdir /s /q release
-      
-    - name: Clean directories (macOS/Linux)
-      if: matrix.os != 'windows-latest'
-      run: |
-        rm -rf dist dist-electron release
+    - name: Clean directories
+      run: npm run clean
       
     - name: Build TypeScript
       run: npx tsc
+      
+    - name: Copy HTML files to dist-electron
+      run: |
+        mkdir -p dist-electron/public
+        cp -r electron/public/* dist-electron/public/ || true
+      shell: bash
       
     - name: Build Vite
       run: npx vite build
@@ -55,43 +50,42 @@ jobs:
     - name: Build Electron (Windows)
       if: matrix.os == 'windows-latest'
       run: npx electron-builder --win --config.win.signAndEditExecutable=false --publish never
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
     - name: Build Electron (macOS)
       if: matrix.os == 'macos-latest'
       run: npx electron-builder --mac --publish never
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
     - name: Build Electron (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: npx electron-builder --linux --publish never
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-    - name: Upload artifacts (Windows)
-      if: matrix.os == 'windows-latest' && success()
+    - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: windows-build
-        path: release/*.exe
+        name: ${{ matrix.os }}-build
+        path: |
+          release/*.exe
+          release/*.dmg
+          release/*.AppImage
+          release/*.snap
+          release/*.deb
+        if-no-files-found: ignore
         
-    - name: Upload artifacts (macOS)
-      if: matrix.os == 'macos-latest' && success()
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-build
-        path: release/*.dmg
-        
-    - name: Upload artifacts (Linux)
-      if: matrix.os == 'ubuntu-latest' && success()
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-build
-        path: release/*.AppImage
-        
-    - name: Release
+    - name: Release assets
+      if: github.event_name == 'release'
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'release' && success()
       with:
         files: |
           release/*.exe
           release/*.dmg
           release/*.AppImage
+          release/*.snap
+          release/*.deb
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
