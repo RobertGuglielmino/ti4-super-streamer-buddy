@@ -1,0 +1,19 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Add your custom styles here */
+body {
+  @apply bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
+}
+
+
+@theme {
+  --color-tiwhite: rgb(255, 255, 255); 
+  --color-tiblue: rgb(1, 169, 203); 
+  --color-tipurple: rgb(190, 70, 229); 
+  --color-tired: rgb(178, 59, 77);
+  --color-tiyellow: rgb(19, 170, 28); 
+  --color-tigreen: rgb(1, 121, 55); 
+}
