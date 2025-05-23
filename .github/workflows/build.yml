@@ -33,7 +33,7 @@ jobs:
       run: |
         npm config set legacy-peer-deps true
         npm install --no-audit --no-fund
-        npm install -g rimraf
+        npm install -g rimraf vite typescript electron-builder
       timeout-minutes: 15
       
     - name: Install dependencies (macOS/Linux)
@@ -41,17 +41,26 @@ jobs:
       run: |
         npm config set legacy-peer-deps true
         npm install --no-audit --no-fund
-        npm install -g rimraf
+        npm install -g rimraf vite typescript electron-builder
       timeout-minutes: 15
       
-    # Skip linting for now since there's no ESLint config
-    # - name: Run linter
-    #   run: npm run lint
+    - name: Clean directories (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: cmd
+      run: |
+        if exist dist rmdir /s /q dist
+        if exist dist-electron rmdir /s /q dist-electron
+        if exist release rmdir /s /q release
+      
+    - name: Clean directories (macOS/Linux)
+      if: matrix.os != 'windows-latest'
+      run: |
+        rm -rf dist dist-electron release
       
     - name: Build app (Windows)
       if: matrix.os == 'windows-latest'
+      shell: cmd
       run: |
-        npx rimraf dist dist-electron release
         npx tsc
         npx vite build
         npx electron-builder --win --config.win.signAndEditExecutable=false
@@ -60,7 +69,6 @@ jobs:
     - name: Build app (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        npx rimraf dist dist-electron release
         npx tsc
         npx vite build
         npx electron-builder
@@ -69,7 +77,6 @@ jobs:
     - name: Build app (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
-        npx rimraf dist dist-electron release
         npx tsc
         npx vite build
         npx electron-builder
