@@ -11,10 +11,82 @@ const { nativeImage, Tray, Menu } = require('electron');
 const axios = require('axios');
 const zlib = require('zlib');
 
-// Add these logging statements near the top of the file
-console.log('Starting Electron app');
-console.log('App path:', app.getAppPath());
-console.log('Current working directory:', process.cwd());
+// Setup file logging
+const LOG_FILE_PATH = path.join(os.homedir(), 'electron-app-log.txt');
+
+function logToFile(message) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${message}\n`;
+  
+  try {
+    fs.appendFileSync(LOG_FILE_PATH, logMessage);
+  } catch (err) {
+    // If we can't write to the log file, try one more time in the temp directory
+    try {
+      const tempLogPath = path.join(os.tmpdir(), 'electron-app-log.txt');
+      fs.appendFileSync(tempLogPath, `Failed to write to primary log: ${err.message}\n${logMessage}`);
+    } catch (e) {
+      // At this point we can't do much more
+    }
+  }
+}
+
+// Clear log file on startup
+try {
+  fs.writeFileSync(LOG_FILE_PATH, `=== Log started at ${new Date().toISOString()} ===\n`);
+  logToFile('Log file initialized');
+} catch (err) {
+  // If we can't write to the log file, try in the temp directory
+  try {
+    const tempLogPath = path.join(os.tmpdir(), 'electron-app-log.txt');
+    fs.writeFileSync(tempLogPath, `=== Log started at ${new Date().toISOString()} ===\n`);
+    logToFile(`Failed to write to primary log: ${err.message}\nUsing temp log at: ${tempLogPath}`);
+  } catch (e) {
+    // At this point we can't do much more
+  }
+}
+
+// Log startup information
+logToFile('Starting Electron app');
+logToFile(`App path: ${app.getAppPath()}`);
+logToFile(`Current working directory: ${process.cwd()}`);
+logToFile(`Log file location: ${LOG_FILE_PATH}`);
+logToFile(`Node version: ${process.versions.node}`);
+logToFile(`Electron version: ${process.versions.electron}`);
+logToFile(`Chrome version: ${process.versions.chrome}`);
+logToFile(`OS: ${os.type()} ${os.release()} ${os.arch()}`);
+
+// Override console methods to also log to file
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+
+console.log = function() {
+  const args = Array.from(arguments).join(' ');
+  logToFile(`[LOG] ${args}`);
+  originalConsoleLog.apply(console, arguments);
+};
+
+console.error = function() {
+  const args = Array.from(arguments).join(' ');
+  logToFile(`[ERROR] ${args}`);
+  originalConsoleError.apply(console, arguments);
+};
+
+console.warn = function() {
+  const args = Array.from(arguments).join(' ');
+  logToFile(`[WARN] ${args}`);
+  originalConsoleWarn.apply(console, arguments);
+};
+
+// Add global error handlers
+process.on('uncaughtException', (error) => {
+  logToFile(`[UNCAUGHT EXCEPTION] ${error.stack || error}`);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logToFile(`[UNHANDLED REJECTION] ${reason}`);
+});
 
 // Server port
 const PORT = 8080;

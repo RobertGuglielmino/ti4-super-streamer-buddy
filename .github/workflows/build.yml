@@ -38,19 +38,14 @@ jobs:
     - name: Build TypeScript
       run: npx tsc
       
-    - name: Debug directory structure before copy
+    - name: Create build directories
       run: |
-        echo "Current directory structure:"
-        ls -la
-        echo "Electron directory structure:"
-        ls -la electron || true
-        echo "Electron public directory:"
-        ls -la electron/public || true
+        mkdir -p dist-electron/public
+        mkdir -p build
       shell: bash
       
     - name: Copy HTML files to dist-electron
       run: |
-        mkdir -p dist-electron/public
         cp -r electron/public/* dist-electron/public/ || true
         echo "Files copied to dist-electron/public:"
         ls -la dist-electron/public || true
@@ -67,6 +62,13 @@ jobs:
         ls -la dist-electron || true
         echo "Dist-electron/public directory:"
         ls -la dist-electron/public || true
+      shell: bash
+      
+    - name: Create dummy icon files for build
+      run: |
+        touch build/icon.ico
+        touch build/icon.icns
+        touch build/icon.png
       shell: bash
       
     - name: Build Electron (Windows)
