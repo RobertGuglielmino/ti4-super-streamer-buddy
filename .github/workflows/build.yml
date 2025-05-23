@@ -21,22 +21,22 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v3
       with:
-        node-version: '18'
+        node-version: '18.17.0'
         
     - name: Install dependencies (Windows)
       if: matrix.os == 'windows-latest'
       shell: cmd
       run: |
         npm config set legacy-peer-deps true
-        npm install
+        npm install --no-audit --no-fund
       
     - name: Install dependencies (macOS/Linux)
       if: matrix.os != 'windows-latest'
       run: |
         npm config set legacy-peer-deps true
-        npm install
+        npm install --no-audit --no-fund
       
     - name: Run linter
       run: npm run lint
