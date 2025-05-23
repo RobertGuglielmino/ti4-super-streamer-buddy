@@ -27,7 +27,9 @@ jobs:
         cache: 'npm'
         
     - name: Install dependencies
-      run: npm ci
+      run: |
+        npm config set legacy-peer-deps true
+        npm install
       
     - name: Run linter
       run: npm run lint
@@ -74,4 +76,4 @@ jobs:
           release/*.dmg
           release/*.AppImage
       env:
-        path: release/*.AppImage
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
