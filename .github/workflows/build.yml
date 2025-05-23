@@ -24,7 +24,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '16.20.0'
+        node-version: '18.x'
       timeout-minutes: 10
       
     - name: Install dependencies
@@ -32,21 +32,6 @@ jobs:
         npm config set legacy-peer-deps true
         npm install --no-audit --no-fund
       timeout-minutes: 15
-      
-    - name: Create simple build script (Windows)
-      if: matrix.os == 'windows-latest'
-      shell: cmd
-      run: |
-        echo { "scripts": { "build-ci": "tsc && vite build && electron-builder --win --config.win.signAndEditExecutable=false" } } > build-script.json
-        type package.json | findstr /v "scripts" > temp.json
-        node -e "const pkg1 = require('./temp.json'); const pkg2 = require('./build-script.json'); const merged = {...pkg1, scripts: {...pkg1.scripts, ...pkg2.scripts}}; require('fs').writeFileSync('package.json', JSON.stringify(merged, null, 2));"
-      
-    - name: Create simple build script (macOS/Linux)
-      if: matrix.os != 'windows-latest'
-      run: |
-        echo '{ "scripts": { "build-ci": "tsc && vite build && electron-builder" } }' > build-script.json
-        grep -v "scripts" package.json > temp.json
-        node -e "const pkg1 = require('./temp.json'); const pkg2 = require('./build-script.json'); const merged = {...pkg1, scripts: {...pkg1.scripts, ...pkg2.scripts}}; require('fs').writeFileSync('package.json', JSON.stringify(merged, null, 2));"
       
     - name: Clean directories (Windows)
       if: matrix.os == 'windows-latest'
@@ -61,9 +46,23 @@ jobs:
       run: |
         rm -rf dist dist-electron release
       
-    - name: Build app
-      run: npm run build-ci
-      timeout-minutes: 30
+    - name: Build TypeScript
+      run: npx tsc
+      
+    - name: Build Vite
+      run: npx vite build
+      
+    - name: Build Electron (Windows)
+      if: matrix.os == 'windows-latest'
+      run: npx electron-builder --win --config.win.signAndEditExecutable=false
+      
+    - name: Build Electron (macOS)
+      if: matrix.os == 'macos-latest'
+      run: npx electron-builder --mac
+      
+    - name: Build Electron (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: npx electron-builder --linux
       
     - name: Upload artifacts (Windows)
       if: matrix.os == 'windows-latest' && success()
