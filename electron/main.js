@@ -11,6 +11,11 @@ const { nativeImage, Tray, Menu } = require('electron');
 const axios = require('axios');
 const zlib = require('zlib');
 
+// Add these logging statements near the top of the file
+console.log('Starting Electron app');
+console.log('App path:', app.getAppPath());
+console.log('Current working directory:', process.cwd());
+
 // Server port
 const PORT = 8080;
 const CLIENT_ID = "gaod8qeh6v1bhu46nzvo4fmrqqvvrf"; // Fill this in when creating the extension
@@ -104,6 +109,8 @@ if (!gotTheLock) {
 }
 
 function createWindow() {
+  console.log('Creating main window');
+  
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -122,12 +129,18 @@ function createWindow() {
 
   // Load the URL based on environment
   const isDev = process.env.NODE_ENV !== "production";
+  console.log('Running in development mode:', isDev);
+  
   if (isDev) {
     // In development, load from Vite dev server
+    console.log('Loading URL from dev server: http://localhost:5173');
     mainWindow.loadURL("http://localhost:5173");
   } else {
     // In production, load from the built files
-    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+    const indexPath = path.join(__dirname, "../dist/index.html");
+    console.log('Loading file in production:', indexPath);
+    console.log('File exists:', fs.existsSync(indexPath));
+    mainWindow.loadFile(indexPath);
   }
 
   // Create tray icon
@@ -137,19 +150,9 @@ function createWindow() {
   mainWindow.on("closed", function () {
     mainWindow = null;
   });
-
-  mainWindow.on("close", function (event) {
-    if (config.minimizeToTray && !app.isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
-      return false;
-    }
-  });
-
-  // If start minimized is enabled
-  if (config.startMinimized) {
-    mainWindow.minimize();
-  }
+  
+  // Add this to show developer tools in production for debugging
+  mainWindow.webContents.openDevTools();
 }
 
 function createTray() {
@@ -226,6 +229,7 @@ function createTray() {
 }
 
 function startExpressServer() {
+  console.log('Starting Express server');
   expressApp = express();
   server = http.createServer(expressApp);
   io = socketIo(server);
@@ -233,11 +237,21 @@ function startExpressServer() {
   expressApp.use(cors());
   expressApp.use(bodyParser.json({ limit: '5mb' }));
   
+  // Log all incoming requests
+  expressApp.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    next();
+  });
+  
   expressApp.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "index.html"));
+    const indexPath = path.join(__dirname, "index.html");
+    console.log('Serving index.html from:', indexPath);
+    console.log('File exists:', fs.existsSync(indexPath));
+    res.sendFile(indexPath);
   });
 
   expressApp.get("/auth", (req, res) => {
+    console.log('Auth endpoint called');
     const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
       REDIRECT_URI
     )}&response_type=token&scope=channel:read:subscriptions`;
@@ -246,7 +260,10 @@ function startExpressServer() {
   });
   
   expressApp.get("/auth/callback", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "callback.html"));
+    const callbackPath = path.join(__dirname, "public", "callback.html");
+    console.log('Serving callback.html from:', callbackPath);
+    console.log('File exists:', fs.existsSync(callbackPath));
+    res.sendFile(callbackPath);
   });
 
   expressApp.post("/auth/complete", (req, res) => {

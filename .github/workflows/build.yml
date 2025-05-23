@@ -38,14 +38,36 @@ jobs:
     - name: Build TypeScript
       run: npx tsc
       
+    - name: Debug directory structure before copy
+      run: |
+        echo "Current directory structure:"
+        ls -la
+        echo "Electron directory structure:"
+        ls -la electron || true
+        echo "Electron public directory:"
+        ls -la electron/public || true
+      shell: bash
+      
     - name: Copy HTML files to dist-electron
       run: |
         mkdir -p dist-electron/public
         cp -r electron/public/* dist-electron/public/ || true
+        echo "Files copied to dist-electron/public:"
+        ls -la dist-electron/public || true
       shell: bash
       
     - name: Build Vite
       run: npx vite build
+      
+    - name: Debug dist directory after build
+      run: |
+        echo "Dist directory structure:"
+        ls -la dist || true
+        echo "Dist-electron directory structure:"
+        ls -la dist-electron || true
+        echo "Dist-electron/public directory:"
+        ls -la dist-electron/public || true
+      shell: bash
       
     - name: Build Electron (Windows)
       if: matrix.os == 'windows-latest'
