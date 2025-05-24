@@ -201,9 +201,12 @@ function createWindow() {
   startExpressServer();
 
   // Load the URL based on environment
-  const isDev = process.env.NODE_ENV !== "production";
+  const isDev = process.env.NODE_ENV === "development" || 
+                process.env.NODE_ENV === undefined && 
+                !app.isPackaged;
+
   console.log('Running in development mode:', isDev);
-  logToFile(`Running in development mode: ${isDev}`);
+  logToFile(`Running in development mode: ${isDev}, app.isPackaged: ${app.isPackaged}, NODE_ENV: ${process.env.NODE_ENV || 'undefined'}`);
   
   if (isDev) {
     // In development, load from Vite dev server
@@ -218,6 +221,8 @@ function createWindow() {
       path.join(app.getAppPath(), "dist/index.html"),
       path.join(process.resourcesPath, "dist/index.html"),
       path.join(__dirname, "../resources/dist/index.html"),
+      path.join(process.resourcesPath, "../dist/index.html"),
+      path.join(process.resourcesPath, "app.asar/dist/index.html"),
       path.join(__dirname, "index.html")
     ];
     
