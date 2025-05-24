@@ -222,9 +222,6 @@ function createWindow() {
     },
   });
 
-  // Set aspect ratio to maintain proper layout
-  // 1060:650 is approximately 1.63:1
-  mainWindow.setAspectRatio(1060/650);
 
   // Ensure window size is set after creation
   mainWindow.on('ready-to-show', () => {
@@ -423,8 +420,6 @@ function startExpressServer() {
 
   expressApp.get("/auth/callback", (req, res) => {
     const callbackPath = path.join(__dirname, "public", "callback.html");
-    console.log("Serving callback.html from:", callbackPath);
-    console.log("File exists:", fs.existsSync(callbackPath));
     res.sendFile(callbackPath);
   });
 

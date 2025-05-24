@@ -14,7 +14,7 @@ function App() {
     const [logEntries, setLogEntries] = useState(initalizeLogs());
     const [reconnect, setReconnect] = useState(true);
     const [horizontalLayout, setInfoLayout] = useState(true);
-    const [debugMode, setDebugMode] = useState(true);
+    const [debugMode, setDebugMode] = useState(false);
     const [refreshRate, setRefreshRate] = useState(5);
     const [authStatus, setAuthStatus] = useState(false);
     const [dataReceived, setDataReceived] = useState(false);
@@ -126,7 +126,7 @@ function App() {
                                     addLog={addLog}
                                 />
                             </div>
-                            <div className="grid grid-cols-3 p-2 bg-gray-950">
+                            <div className="grid grid-cols-3 bg-gray-950">
                                 {gameData.map((player) => (<PlayerBox key={player.playerName} {...player} />))}
                             </div>
                         </div>
