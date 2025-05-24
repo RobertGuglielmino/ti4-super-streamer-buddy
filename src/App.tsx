@@ -75,6 +75,8 @@ function App() {
             updateGameData(data);
             setLastDataReceived(new Date().toLocaleTimeString());
 
+            console.log(gameData);
+
             if (debugMode) {
                 addLog('Received game data from TTPG', 'info');
             }
@@ -95,6 +97,7 @@ function App() {
             socket.off('pubsub_status');
             socket.off('ttpg_data');
             socket.off('server_log');
+            setGameData([]);
         };
     }, [socket, reconnect, debugMode]);
 
@@ -126,7 +129,7 @@ function App() {
                                 />
                             </div>
                             <div className="grid grid-cols-3 bg-gray-950">
-                                {gameData.map((player) => (<PlayerBox key={player.playerName} {...player} />))}
+                                {gameData.map((player) => (<PlayerBox  key={player.color} {...player} />))}
                             </div>
                         </div>
                     ) : (
@@ -154,7 +157,7 @@ function App() {
                                     />
                                 </div>
                                 <div className="grid grid-cols-1 p-1 bg-gray-950">
-                                    {gameData.map((player) => (<PlayerBox key={player.playerName} {...player} />))}
+                                    {gameData.map((player) => (<PlayerBox key={player.color} {...player} />))}
                                 </div>
                             </div>
                         </div>

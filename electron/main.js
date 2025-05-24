@@ -523,7 +523,6 @@ function startExpressServer() {
 
       io.emit("pubsub_status", { success: true });
 
-      console.log("PubSub result:", pubsubResult);
 
       res.json({ success: true });
     } catch (err) {

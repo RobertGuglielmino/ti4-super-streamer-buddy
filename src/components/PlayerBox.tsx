@@ -26,6 +26,7 @@ import yssaril from '../assets/faction_icons/yssaril_icon.png';
 import speakerIcon from '../assets/speaker_square.png'
 
 interface PlayerBoxProps {
+    
     playerName: string;
     color: string;
     score: number;
@@ -152,7 +153,7 @@ function PlayerBox({
         }
     }
 
-    return (<div className="basis-0 flex flex-row w-auto min-w-auto justify-between items-center bg-gray-900 border border-gray-500 gap-2 p-2">
+    return (<div key={color} className="basis-0 flex flex-row w-auto min-w-auto justify-between items-center bg-gray-900 border border-gray-500 gap-2 p-2">
         <div className={`${getBGColor(color)} p-1  min-w-14 size-14  rounded-full relative`}>
             <img src={getFactionIcon(faction)} alt={faction} />
             {speaker && (
