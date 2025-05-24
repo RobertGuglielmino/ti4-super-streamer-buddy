@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "clean": "rimraf dist dist-electron release",
-    "build": "npm run clean && tsc && vite build && electron-builder",
-    "build:win": "npm run clean && tsc && vite build && electron-builder --win --config.win.signAndEditExecutable=false",
+    "build:css": "tailwindcss -i ./src/styles/index.css -o ./src/styles/output.css",
+    "build": "npm run clean && npm run build:css && tsc && vite build && electron-builder",
+    "build:win": "npm run clean && npm run build:css && tsc && vite build && electron-builder --win --config.win.signAndEditExecutable=false",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx"
   },
@@ -57,6 +58,9 @@
       "dist-electron",
       "dist"
     ],
+    "extraMetadata": {
+      "main": "dist-electron/main.js"
+    },
     "win": {
       "target": [
         "nsis"
@@ -81,5 +85,7 @@
     }
   }
 }
+
+
 
 

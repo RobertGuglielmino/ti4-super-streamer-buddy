@@ -51,6 +51,11 @@ jobs:
         ls -la dist-electron/public || true
       shell: bash
       
+    - name: Build Tailwind CSS
+      run: |
+        npx tailwindcss -i ./src/styles/index.css -o ./src/styles/output.css
+      shell: bash
+      
     - name: Build Vite
       run: npx vite build
       

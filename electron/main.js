@@ -212,11 +212,24 @@ function createWindow() {
     height: 650,
     minWidth: 1060,
     minHeight: 650,
+    // Add these properties to better control window size
+    useContentSize: true,
+    resizable: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
       contextIsolation: true,
     },
+  });
+
+  // Set aspect ratio to maintain proper layout
+  // 1060:650 is approximately 1.63:1
+  mainWindow.setAspectRatio(1060/650);
+
+  // Ensure window size is set after creation
+  mainWindow.on('ready-to-show', () => {
+    mainWindow.setSize(1060, 650);
+    mainWindow.center();
   });
 
   startExpressServer();

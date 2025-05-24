@@ -20,3 +20,6 @@ mac:
   target: "dmg"
 linux:
   target: ["AppImage", "deb"]
+# Add this to ensure window settings are preserved
+electronDist: "dist-electron"
+
