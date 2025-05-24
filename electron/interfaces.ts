@@ -56,8 +56,8 @@ export interface PlayerArrayV2 {
 export interface Objectives {
     public1: ProgressObjective[],
     public2: ProgressObjective[],
-    secret: Objective[],
-    mecatol: Objective[],
+    secret: Objective,
+    mecatol: Objective,
     agenda: Objective[],
     relics: Objective[],
 }
@@ -66,7 +66,7 @@ export interface Objective {
     name: string,
     points: number,
     description: string,
-    scored: { [key: number]: number }
+    scored: number[]
 }
 
 export interface ProgressObjective extends Objective {

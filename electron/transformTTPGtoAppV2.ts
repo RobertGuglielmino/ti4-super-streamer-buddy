@@ -124,6 +124,11 @@ function getObjectives(data: GameDataTTPG): any {
   // TODO player id, secret parse, speakre parse from color
 
   function formatPublicIObjectives() {
+
+    if (data.objectives["Public Objectives I"].length === 0) {
+      return [];
+    }
+
     return data.objectives["Public Objectives I"].map((objective: string) => {
       let newObjective: ProgressObjective = {
         id: 0,
@@ -156,6 +161,11 @@ function getObjectives(data: GameDataTTPG): any {
   }
 
   function formatPublicIIObjectives() {
+    
+    if (data.objectives["Public Objectives II"].length === 0) {
+      return [];
+    }
+
     return data.objectives["Public Objectives II"].map((objective: string) => {
       let newObjective: ProgressObjective = {
         id: 0,
@@ -258,6 +268,7 @@ function getObjectives(data: GameDataTTPG): any {
   function formatCustodiansPoints() {
     return {
       name: "Custodians Points",
+      description: "",
       points: 1,
       scored: data.players.map((player: any) => {
         return player.custodiansPoints;
