@@ -64,28 +64,72 @@ jobs:
         ls -la dist-electron/public || true
       shell: bash
       
-    - name: Create dummy icon files for build
+    - name: Create valid icon files for build
       run: |
-        touch build/icon.ico
-        touch build/icon.icns
-        touch build/icon.png
+        # Create a simple 256x256 PNG icon
+        echo "Creating icon files..."
+        
+        # For Windows (ICO)
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          curl -o build/icon.ico https://raw.githubusercontent.com/electron/electron/main/shell/browser/resources/win/electron.ico
+        fi
+        
+        # For macOS (ICNS)
+        if [ "${{ matrix.os }}" = "macos-latest" ]; then
+          curl -o build/icon.icns https://raw.githubusercontent.com/electron/electron/main/shell/browser/resources/mac/electron.icns
+        fi
+        
+        # For Linux (PNG)
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          curl -o build/icon.png https://raw.githubusercontent.com/electron/electron/main/shell/browser/resources/default_app_icon.png
+        fi
+        
+        # Fallback - download all icons for any platform
+        curl -o build/icon.png https://raw.githubusercontent.com/electron/electron/main/shell/browser/resources/default_app_icon.png || true
+        
+        echo "Icon files created:"
+        ls -la build/
       shell: bash
       
-    - name: Build Electron (Windows)
-      if: matrix.os == 'windows-latest'
-      run: npx electron-builder --win --config.win.signAndEditExecutable=false --publish never
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-    - name: Build Electron (macOS)
-      if: matrix.os == 'macos-latest'
-      run: npx electron-builder --mac --publish never
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-    - name: Build Electron (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: npx electron-builder --linux --publish never
+    - name: Build Electron with simplified config
+      run: |
+        # Create a temporary electron-builder config file
+        cat > electron-builder-temp.yml << EOF
+        appId: "com.ti4.superstreamerbuddy"
+        productName: "TI4 Super Streamer Buddy"
+        directories:
+          output: "release"
+          buildResources: "build"
+        files:
+          - "dist/**/*"
+          - "dist-electron/**/*"
+          - "package.json"
+        extraResources:
+          - from: "electron/public"
+            to: "public"
+          - from: "dist"
+            to: "dist"
+        asar: false
+        EOF
+        
+        # Add platform-specific config
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          echo "win:" >> electron-builder-temp.yml
+          echo "  target: nsis" >> electron-builder-temp.yml
+          echo "  icon: build/icon.ico" >> electron-builder-temp.yml
+          npx electron-builder --win --config electron-builder-temp.yml --config.win.signAndEditExecutable=false --publish never
+        elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+          echo "mac:" >> electron-builder-temp.yml
+          echo "  target: dmg" >> electron-builder-temp.yml
+          echo "  icon: build/icon.icns" >> electron-builder-temp.yml
+          npx electron-builder --mac --config electron-builder-temp.yml --publish never
+        elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          echo "linux:" >> electron-builder-temp.yml
+          echo "  target: [\"AppImage\", \"deb\"]" >> electron-builder-temp.yml
+          echo "  icon: build/icon.png" >> electron-builder-temp.yml
+          npx electron-builder --linux --config electron-builder-temp.yml --publish never
+        fi
+      shell: bash
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
