@@ -1,12 +1,10 @@
 
 import { useEffect, useState } from 'react';
-// import ExampleComponent from './components/ExampleComponent.tsx';
 import SystemStatus from './components/SystemStatus.tsx';
 import Configuration from './components/Configuration.tsx';
 import PlayerBox from './components/PlayerBox.tsx';
 import ActivityLog from './components/ActivityLog.tsx';
 import io from 'socket.io-client';
-
 
 export interface LogEntry {
     type: string,
@@ -15,9 +13,6 @@ export interface LogEntry {
 }
 
 function App() {
-    // const [gameData, setGameData] = useState<any>(null);
-    // const [isLoading, setIsLoading] = useState(true);
-    // const [error, setError] = useState<string | null>(null);
     const [logEntries, setLogEntries] = useState(initalizeLogs());
     const [reconnect, setReconnect] = useState(true);
     const [debugMode, setDebugMode] = useState(true);
@@ -26,53 +21,79 @@ function App() {
     const [dataReceived, setDataReceived] = useState(false);
     const [dataPushed, setDataPushed] = useState(false);
     const [lastDataReceived, setLastDataReceived] = useState<string>('None');
-    const socket = io();
+    const [socketConnected, setSocketConnected] = useState(false);
+    
+    // Create socket connection
+    const [socket] = useState(() => io('http://localhost:8080', {
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+    }));
 
-    socket.on('connect', () => {
-        addLog('Connected to server', 'success');
-    });
+    useEffect(() => {
+        // Set up socket event listeners
+        socket.on('connect', () => {
+            setSocketConnected(true);
+            addLog('Connected to server', 'success');
+            console.log('Socket connected!');
+        });
 
-    socket.on('disconnect', () => {
-        addLog('Disconnected from server', 'error');
+        socket.on('disconnect', () => {
+            setSocketConnected(false);
+            addLog('Disconnected from server', 'error');
 
-        if (reconnect) {
-            setTimeout(() => {
-                addLog('Attempting to reconnect...', 'warning');
-                socket.connect();
-            }, 5000);
-        }
-    });
+            if (reconnect) {
+                setTimeout(() => {
+                    addLog('Attempting to reconnect...', 'warning');
+                    socket.connect();
+                }, 5000);
+            }
+        });
 
-    socket.on('auth_status', (data) => {
-        if (data.authenticated) {
+        socket.on('auth_status', (data) => {
+            if (data.authenticated) {
+                setAuthStatus(true);
+                addLog('Successfully authenticated with Twitch', 'success');
+            } else {
+                setAuthStatus(false);
+            }
+        });
+
+        socket.on('pubsub_status', (data) => {
+            if (data.success) {
+                setDataPushed(true);
+                addLog('Data sent to PubSub successfully', 'success');
+            } else {
+                setDataPushed(false);
+                addLog('Error sending data to PubSub: ' + JSON.stringify(data), 'error');
+            }
+        });
+
+        socket.on('ttpg_data', () => {
             setAuthStatus(true);
-            addLog('Successfully authenticated with Twitch', 'success');
-        } else {
-            setAuthStatus(false);
-        }
-    });
-
-    socket.on('pubsub_status', (data) => {
-        if (data.success) {
+            setDataReceived(true);
             setDataPushed(true);
-            addLog('Data sent to PubSub successfully', 'success');
-        } else {
-            setDataPushed(false);
-            addLog('Error sending data to PubSub: ' + JSON.stringify(data), 'error');
-        }
-    });
+            setLastDataReceived(new Date().toLocaleTimeString());
 
-    socket.on('ttpg_data', () => {
-        setAuthStatus(true);
-        setDataReceived(true);
-        setDataPushed(true);
-        setLastDataReceived(new Date().toLocaleTimeString());
+            if (debugMode) {
+                addLog('Received game data from TTPG', 'info');
+            }
+        });
 
+        socket.on('server_log', (data) => {
+            console.log('Received server log:', data);
+            addLog(data.message, data.type);
+        });
 
-        if (debugMode) {
-            addLog('Received game data from TTPG', 'info');
-        }
-    });
+        // Clean up event listeners on unmount
+        return () => {
+            socket.off('connect');
+            socket.off('disconnect');
+            socket.off('auth_status');
+            socket.off('pubsub_status');
+            socket.off('ttpg_data');
+            socket.off('server_log');
+        };
+    }, [socket, reconnect, debugMode]);
 
     useEffect(() => {
         // Load app info when component mounts
@@ -119,7 +140,16 @@ function App() {
 
     function addLog(message: string, type: string = 'info') {
         const timestamp = new Date().toISOString();
-        setLogEntries([{ type, timestamp, message }, ...logEntries]);
+        
+        // Check if this is a duplicate of the most recent log
+        const isDuplicate = logEntries.length > 0 && 
+                            logEntries[0].message === message && 
+                            logEntries[0].type === type &&
+                            Date.now() - new Date(logEntries[0].timestamp).getTime() < 1000;
+        
+        if (!isDuplicate) {
+            setLogEntries(prevLogs => [{ type, timestamp, message }, ...prevLogs]);
+        }
     }
 
     const mockData = [
@@ -201,7 +231,6 @@ function App() {
                         setRefreshRate={setRefreshRate}
                     />
                     <ActivityLog logEntries={logEntries} />
-                    <button onClick={() => addLog('Test log entry', 'info')} >test</button>
                     {/* <ExampleComponent title="App Information" data={appInfo} />
                     <ExampleComponent title="API Data" data={apiData} /> */}
                 </div>
