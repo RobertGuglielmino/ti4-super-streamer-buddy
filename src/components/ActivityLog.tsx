@@ -1,5 +1,5 @@
 
-import { LogEntry } from "@/App";
+import { LogEntry } from "@/interfaces";
 import Section from "./Section";
 
 interface ActivityLogProps {
@@ -24,8 +24,11 @@ function ActivityLog({logEntries}: ActivityLogProps) {
     }
 
     return (<Section title="Activity Log">
-        <div className="bg-black h-48 w-auto overflow-y-auto">
-            {logEntries.map(entry => <div className={`h-8 w-full ${getEntryColor(entry.type)}`}>{`[${entry.timestamp}] ${entry.message}`}</div>)}
+        <div className="bg-black h-80 w-auto overflow-y-auto">
+            {logEntries.map(entry => (<div className="border-b border-gray-500">
+                <div className={`h-8 w-auto ${getEntryColor(entry.type)}`}>{`[${entry.timestamp}]`}</div>
+                <div className={`h-auto w-auto ${getEntryColor(entry.type)}`}>{`     ${entry.message}`}</div>
+                </div>))}
         </div>
     </Section>);
 

@@ -127,6 +127,7 @@ let mainWindow;
 let expressApp;
 let server;
 let io;
+let lastGameData;
 let signedJwt = "";
 
 
@@ -202,15 +203,15 @@ if (!gotTheLock) {
 }
 
 const isDev =
-  process.env.NODE_ENV !== "development" ||
+  process.env.NODE_ENV === "development" ||
   (process.env.NODE_ENV === undefined && !app.isPackaged);
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
+    width: 1060,
+    height: 650,
+    minWidth: 1060,
+    minHeight: 650,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
@@ -286,9 +287,9 @@ Current directory: ${listDirectoryContents(process.cwd())}
   });
 
   // Only open DevTools in development mode
-  if (isDev) {
-    mainWindow.webContents.openDevTools();
-  }
+  // if (isDev) {
+  //   mainWindow.webContents.openDevTools();
+  // }
 }
 
 function createTray() {
@@ -488,6 +489,7 @@ function startExpressServer() {
 
   expressApp.post("/postkey_ttpg", async (req, res) => {
     const preprocessedGameData = req.body;
+    io.emit("ttpg_data", preprocessedGameData);
 
     const gameData = transformTTPGtoAppV2(preprocessedGameData);
     lastGameData = gameData;
@@ -499,7 +501,6 @@ function startExpressServer() {
       );
     }
 
-    io.emit("ttpg_data", gameData);
 
     if (!authData.isAuthenticated) {
       return res.status(401).json({ error: "Not authenticated with Twitch" });
@@ -788,3 +789,677 @@ function listDirectoryContents(dirPath) {
     return `Error reading directory: ${err.message}`;
   }
 }
+
+/*
+=======================
+  DATA TRANSFORMATION
+=======================
+*/
+
+
+export function transformTTPGtoAppV2(data) {
+  return {
+    playerData: getPlayersV2(data),
+    objectives: getObjectives(data),
+    laws: getLaws(data),
+    general: getGeneral(data),
+  };
+}
+
+function getPlayersV2(data) {
+  let playerArray = {
+    name: [],
+    faction: [],
+    color: [],
+    victoryPoints: [],
+    strategyCard: [],
+    strategyCardsFaceDown: [],
+    technologies: {
+      blue: [[], [], [], [], [], []],
+      red: [[], [], [], [], [], []],
+      yellow: [[], [], [], [], [], []],
+      green: [[], [], [], [], [], []],
+      unit: [[], [], [], [], [], []],
+      faction: [[], [], [], [], [], []],
+    },
+    secretObjectives: [],
+    commandCounters: {
+      tactics: [],
+      fleet: [],
+      strategy: [],
+    },
+    commodities: [],
+    tradeGoods: [],
+    maxCommodities: [],
+    actionCards: [],
+    promissoryNotes: [],
+    leaders: {
+      agent: [],
+      commander: [],
+      hero: [],
+    },
+    active: 0,
+    speaker: 0,
+  };
+
+  data.players.forEach((player, index) => {
+    playerArray.name[index] = player.steamName;
+    playerArray.faction[index] = player.factionShort;
+    playerArray.color[index] = player.color;
+    playerArray.victoryPoints[index] = player.score;
+    playerArray.strategyCard[index] = player.strategyCards[0];
+    playerArray.strategyCardsFaceDown[index] = player.strategyCardsFaceDown[0] || "";
+    playerArray.technologies.blue[index] = TECH_TREE.blue.map((tech) =>
+      (player.technologies.includes(tech))
+    );
+    playerArray.technologies.red[index] = TECH_TREE.red.map((tech) =>
+      (player.technologies.includes(tech))
+    );
+    playerArray.technologies.yellow[index] = TECH_TREE.yellow.map((tech) =>
+      (player.technologies.includes(tech))
+    );
+    playerArray.technologies.green[index] = TECH_TREE.green.map((tech) =>
+      (player.technologies.includes(tech))
+    );
+    playerArray.technologies.unit[index] = TECH_TREE.unit.map((tech) =>
+      (player.technologies.includes(tech))
+    );
+    playerArray.technologies.faction[index] = TECH_TREE.faction.map((tech) =>
+      (player.technologies.includes(tech))
+    );
+    playerArray.commandCounters.tactics[index] = player.commandTokens.tactics;
+    playerArray.commandCounters.fleet[index] = player.commandTokens.fleet;
+    playerArray.commandCounters.strategy[index] = player.commandTokens.strategy;
+    playerArray.commodities[index] = player.commodities;
+    playerArray.tradeGoods[index] = player.tradeGoods;
+    playerArray.maxCommodities[index] = player.maxCommodities;
+    playerArray.actionCards[index] = player.handSummary.hasOwnProperty(
+      "Action"
+    )
+      ? player.handSummary.Actions
+      : 0;
+    playerArray.promissoryNotes[index] = player.handSummary.hasOwnProperty(
+      "Promissory"
+    )
+      ? player.handSummary.Promissory
+      : 0;
+    playerArray.leaders.agent[index] = player.leaders.agent === "unlocked";
+    playerArray.leaders.commander[index] = player.leaders.commander === "unlocked";
+    playerArray.leaders.hero[index] = player.leaders.hero === "unlocked";
+
+    if (player.active) {
+      playerArray.active = index;
+    }
+
+    if (data.speaker === player.color) {
+      playerArray.speaker = index;
+    }
+  });
+
+  return playerArray;
+}
+
+function getObjectives(data) {
+  // TODO player id, secret parse, speakre parse from color
+
+  function formatPublicIObjectives() {
+    return data.objectives["Public Objectives I"].map((objective) => {
+      let newObjective = {
+        id: 0,
+        name: objective,
+        description:
+          OBJECTIVE_NAME_ABBREVIATIONS[objective] || "Unknown Objective",
+        points: 1,
+        scored: [],
+        progress: [],
+      };
+
+      data.players.forEach((player, index) => {
+        const playerObjectives = player?.objectives || [];
+        if (playerObjectives.includes(objective)) {
+          newObjective.scored[index] = index;
+        }
+      });
+
+      data.objectivesProgress.forEach((objectiveProgress) => {
+        if (
+          objectiveProgress.name === objective &&
+          objectiveProgress.stage === 1
+        ) {
+          newObjective.progress = objectiveProgress.progress.values.map((o) =>
+            o.value.toString()
+          );
+        }
+      });
+    });
+  }
+
+  function formatPublicIIObjectives() {
+    return data.objectives["Public Objectives II"].map((objective) => {
+      let newObjective = {
+        id: 0,
+        name: objective,
+        description:
+          OBJECTIVE_NAME_ABBREVIATIONS[objective] || "Unknown Objective",
+        points: 2,
+        scored: [],
+        progress: [],
+      };
+
+      data.players.forEach((player, index) => {
+        const playerObjectives = player?.objectives || [];
+        if (playerObjectives.includes(objective)) {
+          newObjective.scored[index] = index;
+        }
+      });
+
+      // TODO uncomment when TTPG has progress data
+      data.objectivesProgress.forEach((objectiveProgress) => {
+        if (
+          objectiveProgress.name === objective &&
+          objectiveProgress.stage === 2
+        ) {
+          newObjective.progress = objectiveProgress.progress.values.map((o) =>
+            o.value.toString()
+          );
+        }
+      });
+    });
+  }
+
+  function formatSecretObjectives() {
+    let newObjective = {
+      name: "Secret Objectives",
+      description: "",
+      points: 1,
+      scored: [],
+    };
+
+    data.players.forEach((player, index) => {
+      let score = 0;
+
+      player.objectives.forEach((objective) => {
+        if (SECRET_OBJECTIVES.includes(objective)) {
+          score += 1;
+        }
+      });
+
+      newObjective.scored[index] = score;
+    });
+
+    return newObjective;
+  }
+
+  function formatAgendaObjectives() {
+    let newObjective = {
+      name: "Agenda",
+      description: "",
+      points: 1,
+      scored: [],
+    };
+
+    data.players.forEach((player, index) => {
+      let score = 0;
+      if (player.laws.includes("Mutiny")) {
+        score += 1;
+      }
+      if (player.laws.includes("Seed of an Empire")) {
+        score += 1;
+      }
+      newObjective.scored[index] = index;
+    });
+
+    return newObjective;
+  }
+
+  function formatRelicObjectives() {
+    let newObjective = {
+      name: "Relics",
+      description: "",
+      points: 1,
+      scored: [],
+    };
+
+    data.players.forEach((player, index) => {
+      let score = 0;
+      if (player.objectives.includes("The Crown of Emphidia")) {
+        score += 1;
+      }
+      if (player.relicCards.includes("Shard of the Throne (PoK)")) {
+        score += 1;
+      }
+      newObjective.scored[index] = index;
+    });
+
+    return newObjective;
+  }
+
+  function formatCustodiansPoints() {
+    return {
+      name: "Custodians Points",
+      points: 1,
+      scored: data.players.map((player) => {
+        return player.custodiansPoints;
+      }),
+    };
+  }
+
+  return {
+    public1: formatPublicIObjectives(),
+    public2: formatPublicIIObjectives(),
+    secret: formatSecretObjectives(),
+    mecatol: formatCustodiansPoints(),
+    agenda: formatAgendaObjectives(),
+    relics: formatRelicObjectives(),
+  };
+}
+
+function getGeneral(data) {
+  return {
+    round: data.round,
+    speaker: data.speaker,
+    activePlayer: data.turn,
+    time: data.timer.seconds.toString(),
+  };
+}
+
+function getLaws(gameData) {
+  const laws = gameData?.laws || [];
+
+  return laws.map((law) => {
+    let tempLaw = {
+      name: law,
+      description: LAW_ABBREVIATIONS[law] || law,
+    };
+
+    for (const player of gameData.players) {
+      if (player.laws.includes(law.name)) {
+        return {
+          ...tempLaw,
+          electedPlayer: player.steamName,
+        };
+      }
+    }
+
+    return tempLaw;
+  });
+}
+
+const TECH_TREE = {
+  blue: [
+    "Antimass Deflectors",
+    "Dark Energy Tap",
+    "Gravity Drive",
+    "Sling Relay",
+    "Fleet Logistics",
+    "Light-Wave Deflector",
+  ],
+  red: [
+    "Plasma Scoring",
+    "AI Development Algorithm",
+    "Magen Defense Grid",
+    "Self Assembly Routines",
+    "Duranium Armor",
+    "Assault Cannon",
+  ],
+  yellow: [
+    "Sarween Tools",
+    "Scanlink Drone Network",
+    "Graviton Laser System",
+    "Predictive Intelligence",
+    "Transit Diodes",
+    "Integrated Economy",
+  ],
+  green: [
+    "Neural Motivator",
+    "Psychoarchaeology",
+    "Dacxive Animators",
+    "Bio-Stims",
+    "Hyper Metabolism",
+    "X-89 Bacterial Weapon",
+  ],
+  unit: [
+    "Advanced Carrier II",
+    "Carrier II",
+    "Crimson Legionnaire II",
+    "Cruiser II",
+    "Destroyer II",
+    "Dimensional Tear II",
+    "Dreadnought II",
+    "Exotrireme II",
+    "Fighter II",
+    "Floating Factory II",
+    "Hel-Titan II",
+    "Hybrid Crystal Fighter II",
+    "Infantry II",
+    "Letani Warrior II",
+    "Memoria II",
+    "PDS II",
+    "Prototype War Sun II",
+    "Saturn Engine II",
+    "Space Dock II",
+    "Spec Ops II",
+    "Strike Wing Alpha II",
+    "Super-Dreadnought II",
+    "War Sun",
+  ],
+  faction: [
+    "Agency Supply Network",
+    "Advanced Carrier II",
+    "Aerie Hololattice",
+    "Aetherstream",
+    "Bioplasmosis",
+    "Chaos Mapping",
+    "Crimson Legionnaire II",
+    "Dimensional Splicer",
+    "Dimensional Tear II",
+    "E-res Siphons",
+    "Exotrireme II",
+    "Floating Factory II",
+    "Genetic Recombination",
+    "Hegemonic Trade Policy",
+    "Hel-Titan II",
+    "Hybrid Crystal Fighter II",
+    "I.I.H.Q. Modernization",
+    "Impulse Core",
+    "Inheritance Systems",
+    "Instinct Training",
+    "L4 Disruptors",
+    "Lazax Gate Folding",
+    "Letani Warrior II",
+    "Mageon Implants",
+    "Magmus Reactor",
+    "Memoria II",
+    "Mirror Computing",
+    "Neural Motivator",
+    "Neuroglaive",
+    "Non-Euclidean Shielding",
+    "Nullification Field",
+    "Pre-Fab Arcologies",
+    "Predictive Intelligence",
+    "Production Biomes",
+    "Prototype War Sun II",
+    "Quantum Datahub Node",
+    "Salvage Operations",
+    "Saturn Engine II",
+    "Spacial Conduit Cylinder",
+    "Spec Ops II",
+    "Strike Wing Alpha II",
+    "Super-Dreadnought II",
+    "Supercharge",
+    "Temporal Command Suite",
+    "Transparasteel Plating",
+    "Valefar Assimilator X",
+    "Valefar Assimilator Y",
+    "Valkyrie Particle Weave",
+    "Voidwatch",
+    "Vortex",
+    "Wormhole Generator",
+    "Yin Spinner",
+  ],
+};
+
+
+const OBJECTIVE_NAME_ABBREVIATIONS = {
+  // Public
+  "Diversify Research": "2 TECH 2 COLORS",
+  "Develop Weaponry": "2 UNIT UPGRADES",
+  "Sway the Council": "8 INFLUENCE",
+  "Erect a Monument": "8 RESOURCES",
+  "Negotiate Trade Routes": "5 TRADE GOODS",
+  "Lead From the Front": "3 COMMAND TOKENS",
+  "Intimidate Council": "2 SYS ADJ TO MR",
+  "Corner the Market": "4 PLANET SAME TRAIT",
+  "Found Research Outposts": "3 TECH SPECIALTY",
+  "Expand Borders": "6 NON-HOME PLANET",
+  "Amass Wealth": "3 INF 3 RES 3 TG",
+  "Build Defenses": "4 STRUCTURES",
+  "Discover Lost Outposts": "2 ATTACHMENTS",
+  "Engineer a Marvel": "FLAG/WAR SUN",
+  "Explore Deep Space": "3 EMPTY SYS",
+  "Improve Infrastructure": "3 STRUCT NOT HOME",
+  "Make History": "2 LGND/MR/ANOM",
+  "Populate the Outer Rim": "3 EDGE SYS",
+  "Push Boundaries": "> 2 NGHBRS",
+  "Raise a Fleet": "5 NON-FGTR SHIPS",
+  "Master the Sciences": "2 TECH 4 COLORS",
+  "Revolutionize Warfare": "3 UNIT UPGRADES",
+  "Manipulate Galactic Law": "16 INFLUENCE",
+  "Found a Golden Age": "16 RESOURCES",
+  "Centralize Galactic Trade": "10 TRADE GOODS",
+  "Galvanize the People": "6 COMMAND TOKENS",
+  "Conquer the Weak": "1 OPPONENT HOME",
+  "Unify the Colonies": "6 PLANET SAME TRAIT",
+  "Form Galactic Brain Trust": "5 TECH SPECIALTY",
+  "Subdue the Galaxy": "11 NON-HOME PLANET",
+  "Achieve Supremacy": "FLAG/WS ON MR/HS",
+  "Become a Legend": "4 LGND/MR/ANOM",
+  "Command an Armada": "8 NON-FGTR SHIPS",
+  "Construct Massive Cities": "7 STRUCTURES",
+  "Control the Borderlands": "5 EDGE SYS",
+  "Hold Vast Reserves": "6 INF 6 RES 6 TG",
+  "Patrol Vast Territories": "5 EMPTY SYS",
+  "Protect the Border": "5 STRUCT NOT HOME",
+  "Reclaim Ancient Monuments": "3 ATTACHMENTS",
+  "Rule Distant Lands": "2 IN/ADJ OTHER HS",
+
+  // Secrets
+  "Become the Gatekeeper": "ALPHA AND BETA",
+  "Mine Rare Minerals": "4 HAZARDOUS",
+  "Forge an Alliance": "4 CULTURAL",
+  "Monopolize Production": "4 INDUSTRIAL",
+  "Cut Supply Lines": "BLOCKADE SD",
+  "Occupy the Seat of the Empire": "MR W/ 3 SHIPS",
+  "Learn the Secrets of the Cosmos": "3 ADJ TO ANOMALY",
+  "Control the Region": "6 SYSTEMS",
+  "Threaten Enemies": "SYS ADJ TO HOME",
+  "Adapt New Strategies": "2 FACTION TECH",
+  "Master the Laws of Physics": "4 TECH 1 COLOR",
+  "Gather a Mighty Fleet": "5 DREADNOUGHTS",
+  "Form a Spy Network": "5 ACTION CARDS",
+  "Fuel the War Machine": "3 SPACE DOCKS",
+  "Establish a Perimeter": "4 PDS",
+  "Make an Example of Their World": "BOMBARD LAST GF",
+  "Turn Their Fleets to Dust": "SPC LAST SHIP",
+  "Destroy Their Greatest Ship": "DESTORY WS/FLAG",
+  "Unveil Flagship": "WIN W/ FLAGSHIP",
+  "Spark a Rebellion": "WIN VS LEADER",
+  "Become a Martyr": "LOSE IN HOME",
+  "Betray a Friend": "WIN VS PROM NOTE",
+  "Brave the Void": "WIN IN ANOMALY",
+  "Darken the Skies": "WIN IN HOME",
+  "Defy Space and Time": "WORMHOLE NEXUS",
+  "Demonstrate Your Power": "3 SHIPS SURVIVE",
+  "Destroy Heretical Works": "PURGE 2 FRAGMENTS",
+  "Dictate Policy": "3 LAWS IN PLAY",
+  "Drive the Debate": "ELECTED AGENDA",
+  "Establish Hegemony": "12 INFLUENCE",
+  "Fight with Precision": "AFB LAST FIGHTER",
+  "Foster Cohesion": "NEIGHBOR W / ALL",
+  "Hoard Raw Materials": "12 RESOURCES",
+  "Mechanize the Military": "4 PLANETS W/ MECH",
+  "Occupy the Fringe": "9 GROUND FORCES",
+  "Produce en Masse": "8 PROD VALUE",
+  "Prove Endurance": "PASS LAST",
+  "Seize an Icon": "LEGENDARY PLANET",
+  "Stake Your Claim": "SHARE SYSTEM",
+  "Strengthen Bonds": "PROM NOTE",
+};
+
+
+const SECRET_OBJECTIVES = [
+  "Become the Gatekeeper",
+  "Mine Rare Minerals",
+  "Forge an Alliance",
+  "Monopolize Production",
+  "Cut Supply Lines",
+  "Occupy the Seat of the Empire",
+  "Learn the Secrets of the Cosmos",
+  "Control the Region",
+  "Threaten Enemies",
+  "Adapt New Strategies",
+  "Master the Laws of Physics",
+  "Gather a Mighty Fleet",
+  "Form a Spy Network",
+  "Fuel the War Machine",
+  "Establish a Perimeter",
+  "Make an Example of Their World",
+  "Turn Their Fleets to Dust",
+  "Destroy Their Greatest Ship",
+  "Unveil Flagship",
+  "Spark a Rebellion",
+  "Become a Martyr",
+  "Betray a Friend",
+  "Brave the Void",
+  "Defy Space and Time",
+  "Demonstrate Your Power",
+  "Destroy Heretical Works",
+  "Dictate Policy",
+  "Drive the Debate",
+  "Establish Hegemony",
+  "Fight with Precision",
+  "Foster Cohesion",
+  "Hoard Raw Materials",
+  "Mechanize the Military",
+  "Occupy the Fringe",
+  "Produce en Masse",
+  "Prove Endurance",
+  "Seize an Icon",
+  "Stake Your Claim",
+  "Strengthen Bonds",
+];
+
+const RELIC_POINTS = [
+  "Shard of the Throne (PoK)",
+  "The Crown of Emphidia",
+];
+
+const AGENDA_POINTS = ["Mutiny", "Seed of an Empire"];
+
+const LAW_ABBREVIATIONS = {
+  "Anti-Intellectual Revolution": "Anti-Int Revolution",
+  "Classified Document Leaks": "Classified Doc Leaks",
+  "Committee Formation": "Committee Formation",
+  "Conventions of War": "Conv's of War",
+  "Core Mining": "Core Mining",
+  "Demilitarized Zone": "Demil'zd Zone",
+  "Enforced Travel Ban": "Enforced Travel Ban",
+  "Executive Sanctions": "Exec Sanctions",
+  "Fleet Regulations": "Fleet Regs",
+  "Holy Planet of Ixth": "Holy Planet of Ixth",
+  "Homeland Defense Act": "Homeland Def Act",
+  "Imperial Arbiter": "Imperial Arbiter",
+  "Minister of Commerce": "Min of Commerce",
+  "Minister of Exploration": "Min of Exploration",
+  "Minister of Industry": "Min of Industry",
+  "Minister of Peace": "Min of Peace",
+  "Minister of Policy": "Min of Policy",
+  "Minister of Sciences": "Min of Sciences",
+  "Minister of War": "Min of War",
+  "Prophecy of Ixth": "Proph of Ixth",
+  "Publicize Weapon Schematics": "Pub Weapon Schematics",
+  "Regulated Conscription": "Reg Conscription",
+  "Representative Government": "Rep Gov't",
+  "Research Team: Biotic": "Res Team: Biotic",
+  "Research Team: Cybernetic": "Res Team: Cybernetic",
+  "Research Team: Propulsion": "Res Team: Propulsion",
+  "Research Team: Warfare": "Res Team: Warfare",
+  "Senate Sanctuary": "Senate Sanct'y",
+  "Shard of the Throne": "Shard of the Throne",
+  "Shared Research": "Shared Research",
+  "Terraforming Initiative": "Terrafor Initiative",
+  "The Crown of Emphidia": "Crown of Emphidia",
+  "The Crown of Thalnos": "Crown of Thalnos",
+  "Wormhole Reconstruction": "Wormhole Reconstruct",
+  "Articles of War": "Articles of War",
+  "Checks and Balances": "Checks and Bal's",
+  "Nexus Sovereignty": "Nexus Sovereignty",
+  "Political Censure": "Pol Censure",
+  "Search Warrant": "Search Warrant",
+};
+
+const TECHNOLOGY_COLOR = {
+  "Agency Supply Network": "yellow",
+  "AI Development Algorithm": "red",
+  "Advanced Carrier II": "white",
+  "Aerie Hololattice": "yellow",
+  Aetherstream: "blue",
+  "Antimass Deflectors": "blue",
+  "Assault Cannon": "red",
+  "Bio-Stims": "green",
+  Bioplasmosis: "green",
+  "Carrier II": "white",
+  "Chaos Mapping": "blue",
+  "Crimson Legionnaire II": "white",
+  "Cruiser II": "white",
+  "Dacxive Animators": "green",
+  "Dark Energy Tap": "blue",
+  "Destroyer II": "white",
+  "Dimensional Splicer": "red",
+  "Dimensional Tear II": "white",
+  "Dreadnought II": "white",
+  "Duranium Armor": "red",
+  "E-res Siphons": "yellow",
+  "Exotrireme II": "white",
+  "Fighter II": "white",
+  "Fleet Logistics": "blue",
+  "Floating Factory II": "white",
+  "Genetic Recombination": "green",
+  "Graviton Laser System": "yellow",
+  "Gravity Drive": "blue",
+  "Hegemonic Trade Policy": "yellow",
+  "Hel-Titan II": "white",
+  "Hybrid Crystal Fighter II": "white",
+  "Hyper Metabolism": "green",
+  "I.I.H.Q. Modernization": "yellow",
+  "Impulse Core": "yellow",
+  "Infantry II": "white",
+  "Inheritance Systems": "yellow",
+  "Instinct Training": "green",
+  "Integrated Economy": "yellow",
+  "L4 Disruptors": "yellow",
+  "Lazax Gate Folding": "blue",
+  "Letani Warrior II": "white",
+  "Light-Wave Deflector": "blue",
+  "Magen Defense Grid": "red",
+  "Mageon Implants": "green",
+  "Magmus Reactor": "red",
+  "Memoria II": "white",
+  "Mirror Computing": "yellow",
+  "Neural Motivator": "green",
+  Neuroglaive: "green",
+  "Non-Euclidean Shielding": "red",
+  "Nullification Field": "yellow",
+  "PDS II": "white",
+  "Plasma Scoring": "red",
+  "Pre-Fab Arcologies": "green",
+  "Predictive Intelligence": "yellow",
+  "Production Biomes": "green",
+  "Prototype War Sun II": "white",
+  Psychoarchaeology: "green",
+  "Quantum Datahub Node": "yellow",
+  "Salvage Operations": "yellow",
+  "Sarween Tools": "yellow",
+  "Saturn Engine II": "white",
+  "Scanlink Drone Network": "yellow",
+  "Self Assembly Routines": "red",
+  "Sling Relay": "blue",
+  "Space Dock II": "white",
+  "Spacial Conduit Cylinder": "blue",
+  "Spec Ops II": "white",
+  "Strike Wing Alpha II": "white",
+  "Super-Dreadnought II": "white",
+  Supercharge: "red",
+  "Temporal Command Suite": "yellow",
+  "Transit Diodes": "yellow",
+  "Transparasteel Plating": "green",
+  "Valefar Assimilator X": "white",
+  "Valefar Assimilator Y": "white",
+  "Valkyrie Particle Weave": "red",
+  Voidwatch: "green",
+  Vortex: "red",
+  "Wormhole Generator": "blue",
+  "X-89 Bacterial Weapon": "green",
+  "Yin Spinner": "green",
+  "War Sun": "white",
+};

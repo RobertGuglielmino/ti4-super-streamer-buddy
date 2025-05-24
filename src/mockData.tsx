@@ -1,0 +1,51 @@
+
+export const mockData = [
+    {
+        playerName: 'Player 1',
+        color: 'blue',
+        score: 1,
+        faction: 'muaat',
+        strategyCard: '-',
+        strategyCardFlipped: false,
+    },
+    {
+        playerName: 'Player 1',
+        color: 'green',
+        score: 1,
+        faction: 'muaat',
+        strategyCard: '-',
+        strategyCardFlipped: false,
+    },
+    {
+        playerName: 'Player 1',
+        color: 'purple',
+        score: 1,
+        faction: 'muaat',
+        strategyCard: '-',
+        strategyCardFlipped: true,
+    },
+    {
+        playerName: 'Player 1',
+        color: 'yellow',
+        score: 1,
+        faction: 'muaat',
+        strategyCard: '-',
+        strategyCardFlipped: false,
+    },
+    {
+        playerName: 'Player 1',
+        color: 'white',
+        score: 1,
+        faction: 'muaat',
+        strategyCard: '-',
+        strategyCardFlipped: false,
+    },
+    {
+        playerName: 'Player 1',
+        color: 'red',
+        score: 1,
+        faction: 'muaat',
+        strategyCard: '-',
+        strategyCardFlipped: false,
+    },
+];

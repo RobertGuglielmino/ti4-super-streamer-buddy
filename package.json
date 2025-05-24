@@ -1,7 +1,7 @@
 {
   "name": "ti4-super-streamer-buddy",
   "version": "1.0.0",
-  "description": "Electron app with React frontend and Express backend",
+  "description": "Connects TTPG TI4 games to the Twitch Extension",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
@@ -48,7 +48,7 @@
     "vite-plugin-electron-renderer": "^0.14.5"
   },
   "build": {
-    "appId": "com.yourcompany.yourapp",
+    "appId": "robertguglielmino.ti4superstreamerbuddy",
     "productName": "TI4 Super Streamer Buddy",
     "directories": {
       "output": "release"
@@ -81,4 +81,5 @@
     }
   }
 }
+
 

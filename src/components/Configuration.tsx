@@ -4,14 +4,22 @@ interface ConfigurationProps {
     reconnect: boolean;
     debugMode: boolean;
     refreshRate: number;
+    infoLayout: boolean;
+    setInfoLayout: (infoLayout: boolean) => void;
     setReconnect: (reconnect: boolean) => void;
     setDebugMode: (debugMode: boolean) => void;
     setRefreshRate: (refreshRate: number) => void;
 }
 
-function Configuration({ reconnect, debugMode, refreshRate, setReconnect, setDebugMode, setRefreshRate }: ConfigurationProps) {
-    return (<Section title="Configuration">
+function Configuration({ reconnect, debugMode, refreshRate, infoLayout, setInfoLayout, setReconnect, setDebugMode, setRefreshRate }: ConfigurationProps) {
+    return (<Section title="Settings">
         <div className="">
+            <div className="border-b-2 m-1">
+                <input checked={infoLayout} onChange={(e) => setInfoLayout(e.target.checked)} type="checkbox" className="form-check-input border-2 border-black m-2"  />
+                <label className="form-check-label" >Change Game Data to Horizontal</label>
+
+                <div className="text-sm text-gray-400">Vertical or Horizontal</div>
+            </div>
             <div className="border-b-2 m-1">
                 <input checked={reconnect} onChange={(e) => setReconnect(e.target.checked)} type="checkbox" className="border-2 border-black m-2" />
                 <label className="form-check-label" >Auto-reconnect</label>

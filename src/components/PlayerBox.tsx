@@ -23,9 +23,7 @@ import winnu from '../assets/faction_icons/winnu_icon.png';
 import xxcha from '../assets/faction_icons/xxcha_icon.png';
 import yin from '../assets/faction_icons/yin_icon.png';
 import yssaril from '../assets/faction_icons/yssaril_icon.png';
-// import { get } from 'http';
-
-
+import speakerIcon from '../assets/speaker_square.png'
 
 interface PlayerBoxProps {
     playerName: string;
@@ -44,7 +42,8 @@ function PlayerBox({
     score,
     faction,
     strategyCard,
-    strategyCardFlipped
+    strategyCardFlipped,
+    speaker = false
 }: PlayerBoxProps) {
 
 
@@ -59,7 +58,7 @@ function PlayerBox({
 
     // get player color
     function getBGColor(color: string) {
-        switch (color) {
+        switch (color.toLowerCase()) {
             case 'red':
                 return 'bg-tired';
             case 'blue':
@@ -78,7 +77,7 @@ function PlayerBox({
     }
 
     function getTextColor(color: string) {
-        switch (color) {
+        switch (color.toLowerCase()) {
             case 'red':
                 return 'text-tired';
             case 'blue':
@@ -97,7 +96,7 @@ function PlayerBox({
     }
 
     function getFactionIcon(faction: string) {
-        switch (faction) {
+        switch (faction.toLowerCase()) {
             case 'arborec':
                 return arborec;
             case 'argent':
@@ -124,7 +123,7 @@ function PlayerBox({
                 return muaat;
             case 'naalu':
                 return naalu;
-            case 'naazrohka':
+            case 'naaz-rokha':
                 return naazrokha;
             case 'nekro':
                 return nekro;
@@ -153,11 +152,16 @@ function PlayerBox({
         }
     }
 
-    return (<div className="flex flex-row w-auto justify-between items-center bg-slate-800 rounded-lg border-2 border-black gap-2 p-2">
-        <div className={`${getBGColor(color)} size-14 rounded-full`}>
+    return (<div className="basis-0 flex flex-row w-auto min-w-auto justify-between items-center bg-gray-900 border border-gray-500 gap-2 p-2">
+        <div className={`${getBGColor(color)} p-1  min-w-14 size-14  rounded-full relative`}>
             <img src={getFactionIcon(faction)} alt={faction} />
+            {speaker && (
+                <div className="absolute -bottom-1 left-0 w-full h-4">
+                    <img src={speakerIcon} alt="Speaker" className="object-cover w-full h-full" />
+                </div>
+            )}
         </div>
-        <div className="flex flex-col items-center">
+        <div className=" flex flex-col min-w-auto items-center">
             <div className={`text-xl ${getTextColor(color)}`}>
                 {playerName}
             </div>
@@ -165,7 +169,7 @@ function PlayerBox({
                 {strategyCard}
             </div>
         </div>
-        <div className={`${getTextColor(color)} text-6xl`}>
+        <div className={`${getTextColor(color)}  min-w-auto text-6xl`}>
             {score}
         </div>
     </div>);
